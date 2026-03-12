@@ -181,21 +181,13 @@ export default function PitchMirror() {
   };
 
   // ─── ANALYSIS ─────────────────────────────────────────────────────────────
-  const API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
-
   const analyzePitch = async (text) => {
     setPhase("analyzing");
     setError("");
     try {
-      if (!API_KEY) throw new Error("VITE_ANTHROPIC_API_KEY is not set. Add it to Railway Variables and redeploy.");
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/chat", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-allow-browser": "true"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-3-5-sonnet-20241022",
           max_tokens: 1500,
@@ -283,14 +275,9 @@ Analyze the pitch and return ONLY valid JSON with no markdown:
 
     try {
       if (!API_KEY) throw new Error("VITE_ANTHROPIC_API_KEY is not set. Add it to Railway Variables and redeploy.");
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/chat", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-allow-browser": "true"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-3-5-sonnet-20241022",
           max_tokens: 600,
@@ -328,14 +315,9 @@ ${isLast ? 'This is your FINAL question. After asking it, close with: "That conc
   const generateFinalReport = async (messages, lastReply) => {
     const allMessages = [...messages, { role: "assistant", content: lastReply }];
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/chat", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-allow-browser": "true"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-3-5-sonnet-20241022",
           max_tokens: 800,
