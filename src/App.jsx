@@ -229,7 +229,8 @@ Analyze the pitch and return ONLY valid JSON with no markdown:
       setAnalysis(parsed);
       setPhase("report");
     } catch (e) {
-      setError("Analysis failed. Please try again.");
+      console.error("Analysis failed:", e);
+      setError("Analysis failed. Please check the console for details and ensure your API key is correct.");
       setPhase("recording");
     }
   };
@@ -293,8 +294,9 @@ ${isLast ? 'This is your FINAL question. After asking it, close with: "That conc
         setSimDone(true);
         generateFinalReport(updated, reply);
       }
-    } catch {
-      setSimMessages(prev => [...prev, { role: "assistant", content: "Connection issue. Please try again." }]);
+    } catch (e) {
+      console.error("Simulation response failed:", e);
+      setSimMessages(prev => [...prev, { role: "assistant", content: "Connection issue. Please check the console for details." }]);
     }
     setSimLoading(false);
   };
@@ -332,7 +334,9 @@ Return ONLY valid JSON with no markdown:
       const data = await res.json();
       const txt = data.content?.find(b => b.type === "text")?.text || "";
       setFinalReport(JSON.parse(txt.replace(/```json|```/g, "").trim()));
-    } catch { /* fail silently */ }
+    } catch (e) { 
+      console.error("Final report generation failed:", e);
+    }
   };
 
   return (
