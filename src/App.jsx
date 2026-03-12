@@ -185,7 +185,7 @@ export default function PitchMirror() {
     setPhase("analyzing");
     setError("");
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("https://your-proxy.up.railway.app/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY },
         body: JSON.stringify({
@@ -269,7 +269,7 @@ Analyze the pitch and return ONLY valid JSON with no markdown:
     const isLast = questionCount >= MAX_QUESTIONS;
 
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("https://your-proxy.up.railway.app/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY },
         body: JSON.stringify({
@@ -304,7 +304,7 @@ ${isLast ? 'This is your FINAL question. After asking it, close with: "That conc
   const generateFinalReport = async (messages, lastReply) => {
     const allMessages = [...messages, { role: "assistant", content: lastReply }];
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("https://your-proxy.up.railway.app/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
