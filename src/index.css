@@ -26,6 +26,12 @@ body {
   text-align: center;
 }
 
+.landing-view .logo {
+  width: 100px;
+  height: 100px;
+  margin-bottom: 2rem;
+}
+
 .landing-view h1 {
   font-family: 'Roboto Slab', serif;
   font-size: 3rem;
