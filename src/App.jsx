@@ -343,9 +343,23 @@ Return ONLY valid JSON with no markdown:
     <div className="app-container">
       {phase === 'landing' && (
         <div className="landing-view">
-          <h1>Welcome to PitchMirror</h1>
-          <p>Practice your startup pitch and get feedback from AI investors.</p>
-          <button onClick={() => setPhase('recording')}>Start Pitch Practice</button>
+          <h1>PitchMirror: AI-Powered Pitch Practice</h1>
+          <p className="subtitle">From first draft to investor-ready. Get instant, expert feedback on your startup pitch and master your delivery.</p>
+          <div className="features">
+            <div className="feature">
+              <h3>Practice on Your Own</h3>
+              <p>Record your pitch and get a detailed analysis of your structure, clarity, and storytelling.</p>
+            </div>
+            <div className="feature">
+              <h3>Simulate Investor Q&A</h3>
+              <p>Face realistic questions from AI investors with different personalities and priorities.</p>
+            </div>
+            <div className="feature">
+              <h3>Get Actionable Feedback</h3>
+              <p>Receive a comprehensive report with scores and specific recommendations for improvement.</p>
+            </div>
+          </div>
+          <button onClick={() => setPhase('recording')}>Start Your Free Analysis</button>
         </div>
       )}
 
