@@ -185,7 +185,7 @@ export default function PitchMirror() {
     setPhase("analyzing");
     setError("");
     try {
-      const res = await fetch("https://your-proxy.up.railway.app/api/chat", {
+      const res = await fetch(`${import.meta.env.VITE_RAILWAY_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -269,7 +269,7 @@ Analyze the pitch and return ONLY valid JSON with no markdown:
     const isLast = questionCount >= MAX_QUESTIONS;
 
     try {
-      const res = await fetch("https://your-proxy.up.railway.app/api/chat", {
+      const res = await fetch(`${import.meta.env.VITE_RAILWAY_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -304,7 +304,7 @@ ${isLast ? 'This is your FINAL question. After asking it, close with: "That conc
   const generateFinalReport = async (messages, lastReply) => {
     const allMessages = [...messages, { role: "assistant", content: lastReply }];
     try {
-      const res = await fetch("https://your-proxy.up.railway.app/api/chat", {
+      const res = await fetch(`${import.meta.env.VITE_RAILWAY_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -343,7 +343,7 @@ Return ONLY valid JSON with no markdown:
     <div className="app-container">
       {phase === 'landing' && (
         <div className="landing-view">
-          <img src="https://core-normal.traeapi.us/api/ide/v1/text_to_image?prompt=A%20modern%2C%20minimalist%20logo%20for%20a%20startup%20called%20'PitchMirror'.%20The%20logo%20should%20combine%20a%20speech%20bubble%20and%20a%20mirror.%20The%20color%20scheme%20should%20be%20professional%2C%20using%20blues%20and%20grays.&image_size=square" alt="PitchMirror Logo" className="logo" />
+          <img src="/logo.png" alt="PitchMirror Logo" className="logo" />
           <h1>PitchMirror: AI-Powered Pitch Practice</h1>
           <p className="subtitle">From first draft to investor-ready. Get instant, expert feedback on your startup pitch and master your delivery.</p>
           <div className="features">
