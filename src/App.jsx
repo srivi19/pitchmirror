@@ -194,7 +194,7 @@ export default function PitchMirror() {
           "anthropic-dangerous-allow-browser": "true"
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-3-5-sonnet-20241022",
           max_tokens: 1500,
           system: `You are an elite startup pitch coach and former VC partner with 20 years of experience evaluating early-stage companies.
 
@@ -228,6 +228,11 @@ Analyze the pitch and return ONLY valid JSON with no markdown:
           messages: [{ role: "user", content: `Pitch transcript:\n\n${text}` }]
         })
       });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        console.error("Anthropic API error:", res.status, errBody);
+        throw new Error(`API ${res.status}: ${errBody?.error?.message || res.statusText}`);
+      }
       const data = await res.json();
       const txt = data.content?.find(b => b.type === "text")?.text || "";
       const parsed = JSON.parse(txt.replace(/```json|```/g, "").trim());
@@ -235,7 +240,7 @@ Analyze the pitch and return ONLY valid JSON with no markdown:
       setPhase("report");
     } catch (e) {
       console.error("Analysis failed:", e);
-      setError("Analysis failed. Please check the console for details and ensure your API key is correct.");
+      setError(`Analysis failed: ${e.message}`);
       setPhase("recording");
     }
   };
@@ -283,7 +288,7 @@ Analyze the pitch and return ONLY valid JSON with no markdown:
           "anthropic-dangerous-allow-browser": "true"
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-3-5-sonnet-20241022",
           max_tokens: 600,
           system: `${selectedInvestor.persona}
 
@@ -296,6 +301,11 @@ ${isLast ? 'This is your FINAL question. After asking it, close with: "That conc
           messages: updated.map(m => ({ role: m.role, content: m.content }))
         })
       });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        console.error("Anthropic API error (simulation):", res.status, errBody);
+        throw new Error(`API ${res.status}: ${errBody?.error?.message || res.statusText}`);
+      }
       const data = await res.json();
       const reply = data.content?.find(b => b.type === "text")?.text || "";
       setSimMessages(prev => [...prev, { role: "assistant", content: reply }]);
@@ -306,7 +316,7 @@ ${isLast ? 'This is your FINAL question. After asking it, close with: "That conc
       }
     } catch (e) {
       console.error("Simulation response failed:", e);
-      setSimMessages(prev => [...prev, { role: "assistant", content: "Connection issue. Please check the console for details." }]);
+      setSimMessages(prev => [...prev, { role: "assistant", content: `Connection issue: ${e.message}` }]);
     }
     setSimLoading(false);
   };
@@ -323,7 +333,7 @@ ${isLast ? 'This is your FINAL question. After asking it, close with: "That conc
           "anthropic-dangerous-allow-browser": "true"
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-3-5-sonnet-20241022",
           max_tokens: 800,
           system: `You are a senior pitch coach producing a formal post-session evaluation report.
 
