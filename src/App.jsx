@@ -181,10 +181,13 @@ export default function PitchMirror() {
   };
 
   // ─── ANALYSIS ─────────────────────────────────────────────────────────────
+  const API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
+
   const analyzePitch = async (text) => {
     setPhase("analyzing");
     setError("");
     try {
+      if (!API_KEY) throw new Error("VITE_ANTHROPIC_API_KEY is not set. Add it to Railway Variables and redeploy.");
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -279,6 +282,7 @@ Analyze the pitch and return ONLY valid JSON with no markdown:
     const isLast = questionCount >= MAX_QUESTIONS;
 
     try {
+      if (!API_KEY) throw new Error("VITE_ANTHROPIC_API_KEY is not set. Add it to Railway Variables and redeploy.");
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
