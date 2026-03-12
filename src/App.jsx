@@ -187,7 +187,7 @@ export default function PitchMirror() {
     try {
       const res = await fetch("https://your-proxy.up.railway.app/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 1500,
@@ -271,7 +271,7 @@ Analyze the pitch and return ONLY valid JSON with no markdown:
     try {
       const res = await fetch("https://your-proxy.up.railway.app/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 600,
