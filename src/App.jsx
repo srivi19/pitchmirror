@@ -189,7 +189,7 @@ export default function PitchMirror() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-3-5-sonnet-20241022",
+          model: "claude-sonnet-4-20250514",
           max_tokens: 1500,
           system: `You are an elite startup pitch coach and former VC partner with 20 years of experience evaluating early-stage companies.
 
@@ -274,12 +274,11 @@ Analyze the pitch and return ONLY valid JSON with no markdown:
     const isLast = questionCount >= MAX_QUESTIONS;
 
     try {
-      if (!API_KEY) throw new Error("VITE_ANTHROPIC_API_KEY is not set. Add it to Railway Variables and redeploy.");
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-3-5-sonnet-20241022",
+          model: "claude-sonnet-4-20250514",
           max_tokens: 600,
           system: `${selectedInvestor.persona}
 
@@ -319,7 +318,7 @@ ${isLast ? 'This is your FINAL question. After asking it, close with: "That conc
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-3-5-sonnet-20241022",
+          model: "claude-sonnet-4-20250514",
           max_tokens: 800,
           system: `You are a senior pitch coach producing a formal post-session evaluation report.
 
