@@ -146,6 +146,88 @@ export default function PitchMirror() {
   const chatEndRef = useRef(null);
   const MAX_QUESTIONS = 4;
 
+  // ─── DOWNLOAD HELPERS ──────────────────────────────────────────────────
+  const downloadReport = () => {
+    if (!analysis) return;
+    const lines = [
+      "PITCHMIRROR — PITCH ANALYSIS REPORT",
+      "=====================================",
+      "",
+      `Overall Score:       ${analysis.overall_score}/10`,
+      `Structure:           ${analysis.structure_score}/10`,
+      `Storytelling:        ${analysis.storytelling_score}/10`,
+      `Clarity:             ${analysis.clarity_score}/10`,
+      `Investor Readiness:  ${analysis.investor_readiness}`,
+      "",
+      "PITCH ELEMENTS",
+      "--------------",
+      ...PITCH_ELEMENTS.map(el => {
+        const e = analysis.elements?.[el];
+        return `${el}: ${e?.present ? (e.quality?.toUpperCase() ?? "") : "NOT PRESENT"} — ${e?.note ?? ""}`;      }),
+      "",
+      "FEEDBACK",
+      "--------",
+      `Top Strength:   ${analysis.top_strength}`,
+      `Top Weakness:   ${analysis.top_weakness}`,
+      "",
+      `Narrative Feedback:`,
+      analysis.narrative_feedback,
+      "",
+      `Opening Due-Diligence Question:`,
+      analysis.opening_question,
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "pitchmirror-analysis.txt"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadFinalReport = () => {
+    if (!finalReport || !analysis) return;
+    const lines = [
+      "PITCHMIRROR — FULL SESSION REPORT",
+      "===================================",
+      "",
+      "PITCH ANALYSIS",
+      "--------------",
+      `Overall Score:      ${analysis.overall_score}/10`,
+      `Structure:          ${analysis.structure_score}/10`,
+      `Storytelling:       ${analysis.storytelling_score}/10`,
+      `Clarity:            ${analysis.clarity_score}/10`,
+      `Investor Readiness: ${analysis.investor_readiness}`,
+      "",
+      "Q&A PERFORMANCE",
+      "---------------",
+      `Q&A Score:               ${finalReport.qa_score}/10`,
+      `Clarity Under Pressure:  ${finalReport.clarity_under_pressure}/10`,
+      `Confidence:              ${finalReport.confidence_score}/10`,
+      "",
+      `Best Answer:    ${finalReport.best_answer_summary}`,
+      `Weakest Moment: ${finalReport.weakest_moment}`,
+      "",
+      "INVESTOR VERDICT",
+      "----------------",
+      finalReport.overall_verdict,
+      "",
+      "NEXT STEPS",
+      "----------",
+      ...finalReport.next_steps.map((s, i) => `${i + 1}. ${s}`),
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "pitchmirror-full-report.txt"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const startOver = () => {
+    setPitchText(""); setTypedPitch(""); setAnalysis(null);
+    setSimMessages([]); setSimDone(false); setQuestionCount(0);
+    setFinalReport(null); setSelectedInvestor(null); setError("");
+    setPhase("landing");
+  };
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [simMessages, simLoading]);
@@ -398,6 +480,7 @@ Return ONLY valid JSON with no markdown:
           </div>
           <button onClick={submitPitch} className="analyze-button">Analyze Pitch</button>
           {error && <p className="error-message">{error}</p>}
+          <button className="back-button" onClick={() => setPhase('landing')}>← Back</button>
         </div>
       )}
 
@@ -405,6 +488,7 @@ Return ONLY valid JSON with no markdown:
         <div className="analyzing-view">
           <h2>Analyzing Your Pitch...</h2>
           <TypingIndicator />
+          <button className="back-button" onClick={() => setPhase('recording')}>← Back</button>
         </div>
       )}
 
@@ -425,7 +509,11 @@ Return ONLY valid JSON with no markdown:
             <p><strong>Narrative Feedback:</strong> {analysis.narrative_feedback}</p>
             <p><strong>Investor Readiness:</strong> {analysis.investor_readiness}</p>
           </div>
-          <button onClick={startSimulation}>Start Investor Q&A</button>
+          <div className="report-actions">
+            <button onClick={startSimulation}>Start Investor Q&A</button>
+            <button className="download-button" onClick={downloadReport}>⤓ Download Report</button>
+            <button className="back-button" onClick={() => setPhase('recording')}>← Back</button>
+          </div>
         </div>
       )}
 
@@ -444,6 +532,7 @@ Return ONLY valid JSON with no markdown:
               </div>
             ))}
           </div>
+          <button className="back-button" onClick={() => setPhase('report')}>← Back</button>
         </div>
       )}
 
@@ -470,6 +559,7 @@ Return ONLY valid JSON with no markdown:
             />
             <button onClick={sendSimResponse} disabled={simLoading || simDone}>Send</button>
           </div>
+          {!simDone && <button className="back-button" onClick={() => setPhase('pickInvestor')}>← Back</button>}
         </div>
       )}
 
@@ -493,6 +583,10 @@ Return ONLY valid JSON with no markdown:
                 {finalReport.next_steps.map((step, i) => <li key={i}>{step}</li>)}
               </ul>
             </div>
+          </div>
+          <div className="report-actions">
+            <button className="download-button" onClick={downloadFinalReport}>⤓ Download Full Report</button>
+            <button onClick={startOver}>↺ Start Over</button>
           </div>
         </div>
       )}
