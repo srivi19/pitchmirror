@@ -142,11 +142,56 @@ export default function PitchMirror() {
   const [finalReport, setFinalReport] = useState(null);
   const [error, setError] = useState("");
   const [selectedInvestor, setSelectedInvestor] = useState(null);
+  const [simIsListening, setSimIsListening] = useState(false);
+  const [voiceOutput, setVoiceOutput] = useState(true);
   const recognitionRef = useRef(null);
+  const simRecognitionRef = useRef(null);
   const chatEndRef = useRef(null);
   const MAX_QUESTIONS = 4;
 
-  // ─── DOWNLOAD HELPERS ──────────────────────────────────────────────────
+  // ─── SIMULATION VOICE I/O ───────────────────────────────────────────────────
+  const speakText = (text) => {
+    if (!voiceOutput) return;
+    window.speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(text);
+    // Prefer a natural English voice
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(v =>
+      v.lang.startsWith("en") && (v.name.includes("Google") || v.name.includes("Daniel") || v.name.includes("Alex"))
+    ) || voices.find(v => v.lang.startsWith("en")) || voices[0];
+    if (preferred) utt.voice = preferred;
+    utt.rate = 0.95;
+    utt.pitch = 1;
+    window.speechSynthesis.speak(utt);
+  };
+
+  const stopSpeaking = () => window.speechSynthesis.cancel();
+
+  const toggleSimMic = () => {
+    if (simIsListening) {
+      simRecognitionRef.current?.stop();
+      setSimIsListening(false);
+      return;
+    }
+    stopSpeaking();
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+    const r = new SR();
+    r.lang = "en-US";
+    r.continuous = false;
+    r.interimResults = false;
+    r.onstart = () => setSimIsListening(true);
+    r.onresult = (e) => {
+      const transcript = Array.from(e.results).map(res => res[0].transcript).join(" ");
+      setSimInput(prev => (prev ? prev + " " : "") + transcript);
+    };
+    r.onerror = () => setSimIsListening(false);
+    r.onend = () => setSimIsListening(false);
+    simRecognitionRef.current = r;
+    r.start();
+  };
+
+  // ─── DOWNLOAD HELPERS ───────────────────────────────────────────────────
   const downloadReport = () => {
     if (!analysis) return;
     const lines = [
@@ -385,6 +430,8 @@ ${isLast ? 'This is your FINAL question. After asking it, close with: "That conc
       if (isLast) {
         setSimDone(true);
         generateFinalReport(updated, reply);
+      } else {
+        speakText(reply);
       }
     } catch (e) {
       console.error("Simulation response failed:", e);
@@ -549,15 +596,32 @@ Return ONLY valid JSON with no markdown:
             <div ref={chatEndRef} />
           </div>
           <div className="chat-input">
+            <button
+              className={`mic-button ${simIsListening ? "mic-active" : ""}`}
+              onClick={toggleSimMic}
+              disabled={simLoading || simDone}
+              title={simIsListening ? "Stop listening" : "Speak your answer"}
+            >
+              {simIsListening ? "🔴" : "🎤"}
+            </button>
             <input
               type="text"
               value={simInput}
-              onChange={(e) => setSimInput(e.target.value)}
+              onChange={(e) => { stopSpeaking(); setSimInput(e.target.value); }}
               onKeyPress={(e) => e.key === 'Enter' && sendSimResponse()}
-              placeholder="Your response..."
+              placeholder={simIsListening ? "Listening..." : "Speak 🎤 or type your answer..."}
               disabled={simLoading || simDone}
             />
             <button onClick={sendSimResponse} disabled={simLoading || simDone}>Send</button>
+          </div>
+          <div className="sim-voice-controls">
+            <button
+              className={`voice-toggle ${voiceOutput ? "voice-on" : "voice-off"}`}
+              onClick={() => { setVoiceOutput(v => !v); if (voiceOutput) stopSpeaking(); }}
+              title="Toggle investor voice output"
+            >
+              {voiceOutput ? "🔊 Investor voice ON" : "🔇 Investor voice OFF"}
+            </button>
           </div>
           {!simDone && <button className="back-button" onClick={() => setPhase('pickInvestor')}>← Back</button>}
         </div>
