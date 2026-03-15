@@ -7,7 +7,7 @@
 
 ## 1. Overview
 
-**PitchMirror** is a single-page web application (SPA) that helps startup founders sharpen their investor pitches using AI. The entire experience runs in the browser — no backend database, no user accounts. All intelligence is delegated to **Anthropic Claude claude-sonnet-4-20250514** via a lightweight proxy server hosted on Railway.
+**PitchMirror** is a full-stack web application (React SPA + Express proxy) that helps startup founders sharpen their investor pitches using AI. The frontend runs entirely in the browser; all Claude API calls are routed through a lightweight Express server that keeps the Anthropic API key server-side. No database, no user accounts.
 
 ---
 
@@ -20,10 +20,11 @@
 | Language | JSX (ES Modules) | — | UI logic & templating |
 | Styling | Vanilla CSS | — | Dark-mode design system |
 | Fonts | Google Fonts (Inter, Roboto Slab) | — | Typography |
-| AI Model | Anthropic Claude claude-sonnet-4-20250514 | — | All intelligence |
-| AI Proxy | Custom REST proxy on Railway | — | Hides API credentials |
-| Browser API | Web Speech API (SpeechRecognition) | — | Voice-to-text recording |
-| Hosting | Vite preview / `serve` (static) | — | Production static serving |
+| Backend proxy | Express | 4.x | Serves SPA + proxies Anthropic API |
+| AI Model | Anthropic Claude | `claude-sonnet-4-20250514` | All intelligence |
+| Voice input | Web Speech API — SpeechRecognition | — | Pitch recording + sim mic |
+| Voice output | Web Speech API — SpeechSynthesis | — | Investor TTS in simulation |
+| Hosting | Railway | — | Runs `node server.js` |
 
 ---
 
@@ -32,20 +33,23 @@
 ```mermaid
 graph TD
     Browser["🌐 Browser (React SPA)"]
-    WebSpeech["🎤 Web Speech API\n(SpeechRecognition)"]
-    Proxy["🔒 Railway Proxy\nhttps://your-proxy.up.railway.app"]
+    SpeechRec["🎤 SpeechRecognition API\nPitch recording + Q&A mic"]
+    SpeechSyn["🔊 SpeechSynthesis API\nInvestor voice output"]
+    Server["🔒 Express Server (Railway)\nserves /dist + POST /api/chat"]
     Claude["🤖 Anthropic Claude\nclaude-sonnet-4-20250514"]
 
-    Browser -->|"voice stream"| WebSpeech
-    WebSpeech -->|"transcript text"| Browser
-    Browser -->|"POST /api/chat (JSON)"| Proxy
-    Proxy -->|"Anthropic API call"| Claude
-    Claude -->|"JSON response"| Proxy
-    Proxy -->|"structured JSON"| Browser
+    Browser -->|"voice stream"| SpeechRec
+    SpeechRec -->|"transcript text"| Browser
+    Browser -->|"TTS utterance"| SpeechSyn
+    Browser -->|"POST /api/chat (same-origin)"| Server
+    Server -->|"x-api-key + messages"| Claude
+    Claude -->|"JSON response"| Server
+    Server -->|"structured JSON"| Browser
 
     style Browser fill:#1E293B,stroke:#38BDF8,color:#E2E8F0
-    style WebSpeech fill:#1E293B,stroke:#818CF8,color:#E2E8F0
-    style Proxy fill:#1E293B,stroke:#FBBF24,color:#E2E8F0
+    style SpeechRec fill:#1E293B,stroke:#818CF8,color:#E2E8F0
+    style SpeechSyn fill:#1E293B,stroke:#818CF8,color:#E2E8F0
+    style Server fill:#1E293B,stroke:#FBBF24,color:#E2E8F0
     style Claude fill:#1E293B,stroke:#34D399,color:#E2E8F0
 ```
 
@@ -53,18 +57,22 @@ graph TD
 
 ## 4. Application Phase State Machine
 
-The app is orchestrated by a single `phase` state variable that drives which view is rendered. There is no router — phase transitions replace the view entirely.
+Orchestrated by a single `phase` state variable. Back buttons are available on every phase except landing. The final report overlays the simulation phase.
 
 ```mermaid
 stateDiagram-v2
     [*] --> landing : App loads
     landing --> recording : "Start Your Free Analysis"
+    recording --> landing : ← Back
     recording --> analyzing : submitPitch() — text ≥ 30 chars
+    analyzing --> recording : ← Back / API error
     analyzing --> report : Claude responds with JSON analysis
-    analyzing --> recording : API error (fallback)
+    report --> recording : ← Back
     report --> pickInvestor : "Start Investor Q&A"
+    pickInvestor --> report : ← Back
     pickInvestor --> simulation : Investor card selected
-    simulation --> simulation : sendSimResponse() — up to 4 rounds
+    simulation --> pickInvestor : ← Back (while Q&A active)
+    simulation --> simulation : sendSimResponse() — up to 4 rounds\nvoice input (mic) + voice output (TTS)
     simulation --> final : 4th Q&A round complete\n(finalReport generated async)
 
     note right of analyzing
@@ -80,7 +88,7 @@ stateDiagram-v2
     end note
 
     note right of final
-        POST /api/chat
+        POST /api/chat (async)
         model: claude-sonnet-4-20250514
         max_tokens: 800
     end note
@@ -98,30 +106,37 @@ graph TD
     TypingIndicator["TypingIndicator\n(animated dots)"]
     CSS["index.css\n(dark design system)"]
     HTML["index.html\n(SPA shell)"]
+    Server["server.js\n(Express proxy)"]
+    Logo["public/logo.png\n(local logo asset)"]
 
     main --> App
     App --> ScoreRing
     App --> TypingIndicator
     App -.->|imports| CSS
+    App -.->|serves| Logo
     HTML --> main
+    Server -.->|serves| HTML
 ```
 
 ### File Inventory
 
-| File | Size | Purpose |
-|---|---|---|
-| `src/main.jsx` | 234 B | React DOM root — renders `<PitchMirror />` into `#root` |
-| `src/App.jsx` | 23 KB | Entire app: state machine, all views, AI calls, sub-components |
-| `src/index.css` | 2.9 KB | Global dark-mode design tokens and view layout classes |
-| `index.html` | 360 B | SPA shell, sets `<div id="root">` |
-| `vite.config.js` | 162 B | Vite config — applies `@vitejs/plugin-react` |
-| `package.json` | 729 B | Dependencies, scripts (`dev`, `build`, `preview`, `start`) |
+| File | Purpose |
+|---|---|
+| `src/main.jsx` | React DOM root — renders `<PitchMirror />` into `#root` |
+| `src/App.jsx` | Entire app: state machine, all views, AI calls, voice I/O, sub-components |
+| `src/index.css` | Global dark-mode design tokens, layout classes, button variants |
+| `index.html` | SPA shell — `<div id="root">` |
+| `server.js` | Express: serves `/dist`, proxies `POST /api/chat` to Anthropic |
+| `public/logo.png` | App logo (local asset, generated) |
+| `vite.config.js` | Vite config — `@vitejs/plugin-react` |
+| `package.json` | Dependencies, scripts (`dev`, `build`, `start`) |
+| `.env` | `ANTHROPIC_API_KEY` — read by server.js only, never in browser |
 
 ---
 
 ## 6. State Management
 
-All state lives inside the single `PitchMirror` component via React `useState` and `useRef` hooks — no external state library.
+All state lives inside the single `PitchMirror` component via React `useState` and `useRef` — no external library.
 
 ```mermaid
 graph LR
@@ -129,67 +144,90 @@ graph LR
         phase(["phase\n7 values"])
         pitchText(["pitchText\nraw transcript"])
         typedPitch(["typedPitch\nmanual input"])
-        useTyping(["useTyping\nbool toggle"])
+        useTyping(["useTyping\nbool"])
         isRecording(["isRecording\nbool"])
         analysis(["analysis\nJSON from Claude"])
         selectedInvestor(["selectedInvestor\nInvestor object"])
         simMessages(["simMessages\nmessage[]"])
         simInput(["simInput\nstring"])
         simLoading(["simLoading\nbool"])
+        simIsListening(["simIsListening\nbool — mic active"])
         simDone(["simDone\nbool"])
+        voiceOutput(["voiceOutput\nbool — TTS on/off"])
         questionCount(["questionCount\n0–4"])
         finalReport(["finalReport\nJSON from Claude"])
         error(["error\nstring"])
     end
 
     subgraph "Refs (useRef)"
-        recognitionRef(["recognitionRef\nSpeechRecognition instance"])
+        recognitionRef(["recognitionRef\npitch SpeechRecognition"])
+        simRecognitionRef(["simRecognitionRef\nsim SpeechRecognition"])
         chatEndRef(["chatEndRef\nscroll anchor"])
     end
 ```
 
 ---
 
-## 7. AI Integration Detail
+## 7. Voice I/O Pipeline
 
-PitchMirror makes **three distinct Claude API calls**, each with a purpose-built system prompt and JSON output schema.
+```mermaid
+flowchart TD
+    subgraph "Pitch Recording (recording phase)"
+        Mic1["🎤 Mic"] --> SR1["SpeechRecognition\ncontinuous · interimResults"]
+        SR1 -->|isFinal chunks| pitchText["pitchText state"]
+        SR1 -->|not supported| TypeFallback["textarea fallback"]
+    end
+
+    subgraph "Simulation Voice I/O (simulation phase)"
+        MicBtn["🎤 Mic button\ntoggleSimMic()"] --> SR2["SpeechRecognition\ncontinuous: false"]
+        SR2 -->|transcript| simInput["simInput state"]
+        simInput --> Send["sendSimResponse()"]
+        Send -->|investor reply| TTS["SpeechSynthesis\nspeakText(reply)"]
+        TTS -->|voiceOutput = false| Muted["🔇 silent"]
+        Toggle["🔊/🔇 Toggle\nvoiceOutput state"] --> Muted
+    end
+```
+
+---
+
+## 8. AI Integration — Three Claude Calls
 
 ```mermaid
 sequenceDiagram
     actor Founder
     participant App as React App
-    participant Proxy as Railway Proxy
+    participant Server as Express (Railway)
     participant Claude as Claude claude-sonnet-4-20250514
 
     %% Call 1: Pitch Analysis
     Founder->>App: Submit pitch text
-    App->>Proxy: POST /api/chat (pitch analysis)
-    Note over Proxy,Claude: system: pitch coach persona<br/>max_tokens: 1500
-    Claude-->>Proxy: JSON { overall_score, structure_score,<br/>storytelling_score, clarity_score,<br/>elements{}, top_strength,<br/>top_weakness, narrative_feedback,<br/>investor_readiness, opening_question }
-    Proxy-->>App: analysis object
-    App-->>Founder: Report view with ScoreRings
+    App->>Server: POST /api/chat
+    Note over Server,Claude: system: pitch coach persona<br/>max_tokens: 1500
+    Claude-->>Server: JSON { overall_score, structure_score,<br/>storytelling_score, clarity_score,<br/>elements{}, top_strength, top_weakness,<br/>narrative_feedback, investor_readiness,<br/>opening_question }
+    Server-->>App: analysis object
+    App-->>Founder: Report view + ScoreRings + ⤓ Download
 
-    %% Call 2: Simulation (repeated)
-    Founder->>App: Select investor + answer questions
+    %% Call 2: Simulation
+    Founder->>App: Select investor + speak/type answers
     loop Up to 4 Q&A rounds
-        App->>Proxy: POST /api/chat (investor persona)
-        Note over Proxy,Claude: system: investor persona + pitch context<br/>max_tokens: 600
-        Claude-->>Proxy: 2–4 sentence investor reply
-        Proxy-->>App: reply text
-        App-->>Founder: Chat bubble
+        App->>Server: POST /api/chat (investor persona)
+        Note over Server,Claude: system: investor persona + pitch context<br/>max_tokens: 600
+        Claude-->>Server: 2–4 sentence investor reply
+        Server-->>App: reply text
+        App-->>Founder: Chat bubble + 🔊 TTS spoken reply
     end
 
-    %% Call 3: Final Report
-    App->>Proxy: POST /api/chat (final evaluation)
-    Note over Proxy,Claude: system: senior pitch coach<br/>max_tokens: 800<br/>user: full Q&A transcript
-    Claude-->>Proxy: JSON { qa_score, clarity_under_pressure,<br/>confidence_score, best_answer_summary,<br/>weakest_moment, overall_verdict, next_steps[] }
-    Proxy-->>App: finalReport object
-    App-->>Founder: Final Report view
+    %% Call 3: Final Report (async)
+    App->>Server: POST /api/chat (final evaluation)
+    Note over Server,Claude: system: senior pitch coach<br/>max_tokens: 800<br/>user: full Q&A transcript
+    Claude-->>Server: JSON { qa_score, clarity_under_pressure,<br/>confidence_score, best_answer_summary,<br/>weakest_moment, overall_verdict, next_steps[] }
+    Server-->>App: finalReport object
+    App-->>Founder: Final Report + ⤓ Download + ↺ Start Over
 ```
 
 ---
 
-## 8. AI Persona Roster
+## 9. AI Persona Roster
 
 Three investor personas are hardcoded as constant objects. Each drives a distinct simulation style.
 
@@ -201,16 +239,14 @@ graph LR
         David["🏦 David Okafor\nMeridian Capital\nCommercial · Fintech & EM\nAccent: #34D399"]
     end
 
-    Claude["Claude claude-sonnet-4-20250514"] -->|adopts persona via system prompt| Marcus
-    Claude -->|adopts persona via system prompt| Aparna
-    Claude -->|adopts persona via system prompt| David
+    Claude["Claude claude-sonnet-4-20250514"] -->|system prompt persona| Marcus
+    Claude -->|system prompt persona| Aparna
+    Claude -->|system prompt persona| David
 ```
 
 ---
 
-## 9. Pitch Analysis Output Schema
-
-Claude is constrained to return strict JSON. The app parses this directly with `JSON.parse()`.
+## 10. Pitch Analysis Output Schema
 
 ```mermaid
 graph TD
@@ -225,16 +261,16 @@ graph TD
     elements --> Market["Market { present, quality, note }"]
     elements --> Traction["Traction { present, quality, note }"]
     elements --> Ask["Ask { present, quality, note }"]
-    Analysis --> top_strength["top_strength (string)"]
-    Analysis --> top_weakness["top_weakness (string)"]
-    Analysis --> narrative_feedback["narrative_feedback (string)"]
+    Analysis --> top_strength["top_strength"]
+    Analysis --> top_weakness["top_weakness"]
+    Analysis --> narrative_feedback["narrative_feedback"]
     Analysis --> investor_readiness["not ready | early stage | fundable | strong"]
-    Analysis --> opening_question["opening_question (string → seeds Q&A)"]
+    Analysis --> opening_question["opening_question → seeds Q&A"]
 ```
 
 ---
 
-## 10. Final Report Output Schema
+## 11. Final Report Output Schema
 
 ```mermaid
 graph TD
@@ -242,25 +278,10 @@ graph TD
     FR --> qa_score["qa_score (1–10)"]
     FR --> clarity_under_pressure["clarity_under_pressure (1–10)"]
     FR --> confidence_score["confidence_score (1–10)"]
-    FR --> best_answer_summary["best_answer_summary (string)"]
-    FR --> weakest_moment["weakest_moment (string)"]
-    FR --> overall_verdict["overall_verdict (string)"]
+    FR --> best_answer_summary["best_answer_summary"]
+    FR --> weakest_moment["weakest_moment"]
+    FR --> overall_verdict["overall_verdict"]
     FR --> next_steps["next_steps[] — 3 actionable items"]
-```
-
----
-
-## 11. Voice Input Pipeline
-
-```mermaid
-flowchart LR
-    Mic["🎤 Microphone"] --> SR["Web SpeechRecognition API\nlang: en-US\ncontinuous: true\ninterimResults: true"]
-    SR -->|isFinal chunks| pitchText["pitchText state\n(append-only)"]
-    SR -->|error / not supported| TypeFallback["useTyping = true\n→ textarea input"]
-    pitchText --> Submit["submitPitch()"]
-    TypeFallback --> Submit
-    Submit -->|length < 30 chars| Error["setError() — validation"]
-    Submit -->|length ≥ 30 chars| analyzePitch["analyzePitch(text)"]
 ```
 
 ---
@@ -269,18 +290,20 @@ flowchart LR
 
 | Token | Value | Usage |
 |---|---|---|
-| Background (dark) | `#0F172A` | Page root |
-| Surface | `#1E293B` | Cards, panels, chat bubbles |
+| Background | `#0F172A` | Page root |
+| Surface | `#1E293B` | Cards, chat bubbles, mic button |
 | Border | `#334155` | All borders |
 | Primary text | `#E2E8F0` | Body copy |
 | Muted text | `#94A3B8` | Subtitles, labels |
-| Accent blue | `#38BDF8` | CTAs, user chat bubbles |
+| Accent blue | `#38BDF8` | Primary CTAs, user chat bubbles |
 | Score green | `#4ADE80` | Scores ≥ 8 |
 | Score amber | `#FBBF24` | Scores 5–7 |
 | Score red | `#F87171` | Scores ≤ 4 |
-| Font (headings) | Roboto Slab 700 | Landing title, section heads |
+| Download green | `#10B981` | Download buttons |
+| Mic active red | `#EF4444` | Pulsing mic button border |
+| Font (headings) | Roboto Slab 700 | Landing title |
 | Font (body) | Inter 400/600/700 | All other text |
-| Font (scores) | DM Mono (inline) | ScoreRing label |
+| Font (scores) | DM Mono (inline) | ScoreRing numbers |
 
 ---
 
@@ -288,21 +311,21 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    Dev["npm run dev\nvite dev server :5173"] -->|local iteration| Browser
+    Dev["npm run dev\nVite dev server :5173\n(frontend only)"] -->|iterate| Browser
     Build["npm run build\nvite build → /dist"] --> Dist["/dist static assets"]
-    Dist --> Serve["npm start\nserve -s dist"]
-    Dist --> CDN["Static CDN / hosting\n(Netlify, Vercel, etc.)"]
+    Dist --> Start["npm start\nnode server.js :3000\nserves dist + proxies /api/chat"]
+    Railway["Railway\nsets ANTHROPIC_API_KEY\nruns build + start"] --> Start
 ```
 
 ### Scripts
 
 | Script | Command | Purpose |
 |---|---|---|
-| `dev` | `vite` | Hot-reload dev server |
-| `build` | `vite build` | Optimised production bundle |
-| `preview` | `vite preview` | Preview production build locally |
-| `start` | `serve -s dist` | Serve built `/dist` as SPA |
-| `lint` | `eslint . --ext js,jsx` | Static code analysis |
+| `dev` | `vite` | Hot-reload frontend dev |
+| `build` | `vite build` | Production SPA bundle → `/dist` |
+| `preview` | `vite preview` | Preview built bundle locally |
+| `start` | `node server.js` | Express server: serves dist + AI proxy |
+| `lint` | `eslint . --ext js,jsx` | Static analysis |
 
 ---
 
@@ -310,10 +333,11 @@ flowchart LR
 
 | Decision | Rationale | Trade-off |
 |---|---|---|
-| **Single-file app (`App.jsx`)** | Rapid prototyping; zero routing complexity | Harder to maintain at scale |
-| **No backend / database** | Zero infra; fully static hosting | No persistence — session state lost on refresh |
-| **Railway proxy for API key** | API key is never exposed to the browser | Extra network hop; proxy must be kept live |
-| **Hardcoded investor personas** | Curated, high-quality prompts; no config needed | Adding new investors requires a code change |
-| **Web Speech API** | Native browser API; no third-party libs | Varies by browser; graceful fallback to textarea |
-| **Phase-based navigation** | Enforces strict linear flow | Cannot deep-link to a specific phase |
-| **JSON-only Claude outputs** | Deterministic parsing; no markdown stripping needed | Prompt engineering effort required |
+| **Express proxy (`server.js`)** | API key stays server-side; eliminates CORS | Must be kept live on Railway |
+| **Single-file app (`App.jsx`)** | Rapid prototyping; zero routing complexity | Harder to split at scale |
+| **No database** | Zero infra; stateless per session | Session lost on refresh |
+| **Web Speech API** | Native browser; no third-party libs | Chrome/Edge best; Safari limited |
+| **SpeechSynthesis for TTS** | Zero cost; native; no latency | Voice quality varies by OS/browser |
+| **Hardcoded investor personas** | Curated, high-quality prompts | New investors need a code change |
+| **Phase-based navigation** | Strict linear flow; clear UX | Cannot deep-link to a specific phase |
+| **JSON-only Claude outputs** | Deterministic parsing; no post-processing | Requires careful prompt engineering |
